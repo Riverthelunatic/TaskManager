@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.44.4/dist/umd/supabase.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+
+  <style>
+    body { background-color: #ffffff; font-size: 1.1rem; color: white; margin: 0; padding: 0; font-family: Arial, sans-serif; height: 100vh; overflow: hidden; }
+    .container { display: flex; height: 100vh; flex-direction: row; }
+    .sidebar { display: flex; flex-direction: column; width: 15%; background-color: #6d6d6d; padding: 10px; }
+    .rightcolumn { display: flex; flex-direction: column; flex: 0 0 20%; }
+    .navbar { line-height: 200%; }
+    .chatbox { flex-grow: 1; background-color: #4d4d4d; display: flex; flex-direction: column; padding: 10px; }
+    .middle { flex: 1; display: flex; flex-direction: row; justify-content: space-between; overflow: hidden; }
+    .tasks { flex: 1; background-color: #9f4d4d; padding: 20px; overflow-y: auto; }
+    .settingsorreminders { flex: 1; background-color: #2d661a; padding: 20px; overflow-y: auto; }
+    .a, a, a:hover, a:focus, a:active { text-decoration: none; color: white; }
+    .navbar ul { list-style: none; padding: 0; }
+    .navbar li { margin: 20px 0; }
+    button { background-color: #f87800; color: white; font-size: 0.9rem; cursor: pointer; border-radius: 6px; border: none; padding: 4px 8px; }
+    .all_tasks { background-color: #337ca3; flex: 1; padding: 10px; overflow-y: auto; }
+    .calendar { background-color: #4d4d4d; flex: 1; padding: 10px; overflow-y: auto; }
+    .task { background-color: #48373777; padding: 10px; margin-bottom: 10px; border-radius: 5px; }
+    .done { text-decoration: line-through; color: lightgreen; }
+    .examplebar { background-color: #0dff0077; padding: 5px; margin-top: 5px; border-radius: 5px; }
+    .chatboxtextarea { margin-top: auto; width: 100%; min-height: 50px; background-color: #938585; color: white; border: none; padding: 10px; box-sizing: border-box; resize: none; border-radius: 6px; }
+    .error { background: #b00020; color: #fff; padding: 8px 10px; border-radius: 6px; margin-top: 10px; display: none; }
+    .muted { opacity: 0.9; font-size: 0.95rem; }
+    .dropdown-toggle { background-color: #444; color: white; border-radius: 6px; padding: 8px 12px; cursor: pointer; display: inline-block; margin-top: 8px; }
+    .subtasks-container { display: none; margin-top: 10px; padding: 10px; background: #5a3d3d; border-radius: 5px; }
+    .subtask-item { background: #7a5656; margin: 5px 0; padding: 5px 10px; border-radius: 3px; }
+    .progress-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 6px;
+    }
+    .progress-container {
+      flex: 1;
+      height: 12px;
+      background: #222;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .progress-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #4caf50, #8bc34a);
+    }
+    .progress-text {
+      font-size: 0.9rem;
+      white-space: nowrap;
+    }
+    #calendar {
+      max-width: 90%;
+      height: 20%;
+      margin: 0 auto;
+      font-size: 0.9rem;
+    }
+    .fc-button {
+      background-color: #f87800 !important;
+      color: white !important;
+      border: none !important;
+      border-radius: 6px !important;
+      padding: 6px 10px !important;
+      font-size: 0.9rem !important;
+    }
+    /* importants to override whatever the api or something made for buttons */
+
+
+
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="sidebar">
+      <div id="user-info" style="margin-bottom: 1rem; font-size: 0.9rem;">
+        <strong id="user-name"></strong><br>
+        <span id="user-email"></span>
+      </div>
+      
+      <div class="navbar">
+        <nav>
+          <ul>
+            <li><a href="Dashboard.html">Dashboard</a></li>
+            <li><a href="Login.html">Login</a></li>
+            <li><a href="Registration.html">Register</a></li>
+          </ul>
+        </nav>
+      </div>
+      <div class="chatbox">
+        Chatbox area
+        <textarea class="chatboxtextarea" placeholder="What’s on your mind today?"></textarea>
+      </div>
+    </div>
+
+    <div class="middle">
+      <div class="tasks">
+        <h1>Task</h1>
+        <form id="taskForm" autocomplete="off">
+          <input type="text" id="taskInput" placeholder="Enter new task" required
+                 style="width:100%; margin-bottom:10px; padding:8px; border:none; border-radius:5px;">
+
+          <div class="dropdown-toggle" id="toggleSubtasks">+ Add Subtasks</div>
+          <div class="subtasks-container" id="subtasksContainer">
+            <input type="text" id="subtaskInput" placeholder="Enter subtask"
+                   style="width:100%; margin-bottom:10px; padding:8px; border:none; border-radius:5px;">
+            <button type="button" id="addSubtaskBtn">Add Subtask</button>
+            <div id="subtaskList"></div>
+          </div>
+
+          <button type="submit" style="margin-top:10px;">Create new task</button>
+          <div id="formError" class="error"></div>
+        </form>
+      </div>
+
+      <div class="settingsorreminders">
+        <h1>Settings/Reminders</h1>
+      </div>
+    </div>
+
+    <div class="rightcolumn">
+
+      <div class="calendar">
+        <div id="calendar"></div>
+      </div>     
+      <div class="all_tasks">
+        <h2>All Tasks</h2>
+        <div id="taskList"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const supurl = "https://ksjlxzbkwwruhdadceye.supabase.co";
+    const supkey = "sb_publishable_-KfmG3orAkfVuByaPhDf4Q_ZlD_5GFS";
+    const supabaseClient = supabase.createClient(supurl, supkey);
+  
+    const taskForm = document.getElementById("taskForm");
+    const taskInput = document.getElementById("taskInput");
+    const taskList  = document.getElementById("taskList");
+    const formError = document.getElementById("formError");
+    const toggleSubtasks = document.getElementById("toggleSubtasks");
+    const subtasksContainer = document.getElementById("subtasksContainer");
+    const subtaskInput = document.getElementById("subtaskInput");
+    const addSubtaskBtn = document.getElementById("addSubtaskBtn");
+    const subtaskList = document.getElementById("subtaskList");
+  
+    let subtasks = [];
+    let calendar; //let there be calendar!!!
+  
+    function showError(msg) {
+      formError.textContent = msg;
+      formError.style.display = "block";
+    }
+    function clearError() {
+      formError.textContent = "";
+      formError.style.display = "none";
+    }
+  
+    function createSubtaskElement(st) {
+      const li = document.createElement("li");
+      li.style.display = "flex";
+      li.style.justifyContent = "space-between";
+      li.style.alignItems = "center";
+      li.style.padding = "5px 0";
+  
+      const textSpan = document.createElement("span");
+      textSpan.textContent = st.subtaskname;
+      textSpan.style.cursor = "pointer";
+      if (st.completed) textSpan.classList.add("done");
+  
+      textSpan.addEventListener("click", async () => {
+        const { error } = await supabaseClient
+          .from("subtasks")
+          .update({ completed: !st.completed })
+          .eq("id", st.id);
+  
+        if (error) {
+          console.error("Error updating subtask:", error);
+          showError("Couldn’t update subtask");
+          return;
+        }
+  
+        st.completed = !st.completed;
+        textSpan.classList.toggle("done");
+        updateProgress(li.closest(".task"));
+      });
+  
+      const btns = document.createElement("div");
+      btns.style.display = "flex";
+      btns.style.gap = "4px";
+  
+      const editBtn = document.createElement("button");
+      editBtn.innerHTML = "<i class='fa-solid fa-pen-to-square'></i>";
+      editBtn.addEventListener("click", async () => {
+        const newName = prompt("Edit subtask:", st.subtaskname);
+        if (!newName) return;
+  
+        const { error } = await supabaseClient
+          .from("subtasks")
+          .update({ subtaskname: newName })
+          .eq("id", st.id);
+  
+        if (error) {
+          console.error("Error editing subtask:", error);
+          showError("Couldn’t edit subtask");
+          return;
+        }
+  
+        st.subtaskname = newName;
+        textSpan.textContent = newName;
+      });
+  
+      const deleteBtn = document.createElement("button");
+      deleteBtn.innerHTML = "<i class='fa-solid fa-trash'></i>";
+      deleteBtn.addEventListener("click", async () => {
+        const confirmDel = confirm("Delete this subtask?");
+        if (!confirmDel) return;
+  
+        const { error } = await supabaseClient
+          .from("subtasks")
+          .delete()
+          .eq("id", st.id);
+  
+        if (error) {
+          console.error("Error deleting subtask:", error);
+          showError("Couldn’t delete subtask");
+          return;
+        }
+  
+        li.remove();
+        updateProgress(li.closest(".task"));
+      });
+  
+      btns.appendChild(editBtn);
+      btns.appendChild(deleteBtn);
+      li.appendChild(textSpan);
+      li.appendChild(btns);
+      return li;
+    }
+  
+    function updateProgress(taskDiv) {
+      const lis = taskDiv.querySelectorAll("li");
+      let completed = 0;
+      lis.forEach(li => {
+        if (li.querySelector("span").classList.contains("done")) completed++;
+      });
+  
+      const percent = lis.length ? Math.round((completed / lis.length) * 100) : 0;
+      const bar = taskDiv.querySelector(".progress-bar");
+      const text = taskDiv.querySelector(".progress-text");
+      if (bar) bar.style.width = percent + "%";
+      if (text) text.textContent = percent + "%";
+    }
+  
+    async function loadTasks() {
+      const { data: tasks, error } = await supabaseClient
+        .from("Tasks")
+        .select("id, taskname, completed, dueDate")
+        .eq("uid", currentUID);
+  
+      if (error) {
+        console.error("Error loading tasks:", error);
+        showError("Couldn’t load tasks: " + (error.message || "unknown error"));
+        return;
+      }
+  
+      taskList.innerHTML = "";
+      calendar.removeAllEvents(); 
+  
+      for (const task of tasks) {
+        const { data: subs } = await supabaseClient
+          .from("subtasks")
+          .select("*")
+          .eq("taskid", task.id);
+  
+        renderTask(task, subs || []);
+        if (task.dueDate) {
+          calendar.addEvent({
+            title: task.taskname,
+            start: task.dueDate,
+            allDay: true
+          });
+        }
+      }
+    }
+    async function addTask() {
+      const title = document.getElementById("task-title").value.trim();
+      const date = document.getElementById("task-date").value;
+
+      if (!title || !date) {
+        alert("Please enter both a title and date.");
+        return;
+      }
+
+      if (!currentUID) {
+        alert("User not authenticated.");
+        return;
+      }
+
+      const { error } = await supabaseClient
+        .from("Tasks")
+        .insert([{ title, date, uid: currentUID }]);
+
+      if (error) {
+        alert("Error adding task: " + error.message);
+        return;
+      }
+
+      document.getElementById("task-title").value = "";
+      document.getElementById("task-date").value = "";
+
+      await loadTasks();
+    }
+
+  
+    toggleSubtasks.addEventListener("click", () => {
+      if (subtasksContainer.style.display === "block") {
+        subtasksContainer.style.display = "none";
+        toggleSubtasks.textContent = "+ Add Subtasks";
+      } else {
+        subtasksContainer.style.display = "block";
+        toggleSubtasks.textContent = "- Hide Subtasks";
+      }
+    });
+  
+    function renderTask(task, taskSubtasks = []) {
+      const div = document.createElement("div");
+      div.className = "task";
+      div.dataset.taskId = task.id;
+      div.innerHTML = "<strong>" + (task.taskname ?? "(untitled task)") + "</strong>";
+
+      if (task.dueDate) {
+        const due = document.createElement("div");
+        due.className = "muted";
+        due.textContent = "Due: " + new Date(task.dueDate).toLocaleDateString();
+        div.appendChild(due);
+      }
+  
+      const ul = document.createElement("ul");
+      let completedCount = 0;
+  
+      taskSubtasks.forEach(st => {
+        const li = createSubtaskElement(st);
+        if (st.completed) completedCount++;
+        ul.appendChild(li);
+      });
+  
+      if (taskSubtasks.length > 0) div.appendChild(ul);
+  
+      const addBtn = document.createElement("button");
+      addBtn.textContent = "+";
+      addBtn.addEventListener("click", async () => {
+        const subtaskName = prompt("Enter subtask:");
+        if (!subtaskName) return;
+  
+        const { data, error } = await supabaseClient
+          .from("subtasks")
+          .insert([{ taskid: task.id, subtaskname: subtaskName, completed: false }])
+          .select();
+  
+        if (error) {
+          console.error("Error adding subtask:", error);
+          showError("Couldn’t add subtask");
+          return;
+        }
+  
+        const newSubtask = data[0];
+        const li = createSubtaskElement(newSubtask);
+        ul.appendChild(li);
+        updateProgress(div);
+      });
+      div.appendChild(addBtn);
+  
+      const progressWrapper = document.createElement("div");
+      progressWrapper.className = "progress-wrapper";
+  
+      const progressContainer = document.createElement("div");
+      progressContainer.className = "progress-container";
+      const progressBar = document.createElement("div");
+      progressBar.className = "progress-bar";
+      progressContainer.appendChild(progressBar);
+  
+      const progressText = document.createElement("div");
+      progressText.className = "progress-text";
+      progressWrapper.appendChild(progressContainer);
+      progressWrapper.appendChild(progressText);
+      div.appendChild(progressWrapper);
+  
+      const percent = taskSubtasks.length
+        ? (completedCount / taskSubtasks.length) * 100
+        : 0;
+      progressBar.style.width = percent + "%";
+      progressText.textContent = Math.round(percent) + "%";
+  
+      taskList.prepend(div);
+    }
+  
+    addSubtaskBtn.addEventListener("click", () => {
+      const val = subtaskInput.value.trim();
+      if (!val) return;
+      subtasks.push(val);
+  
+      const div = document.createElement("div");
+      div.className = "subtask-item";
+      div.textContent = val;
+      subtaskList.appendChild(div);
+  
+      subtaskInput.value = "";
+      subtaskInput.focus();
+    });
+    let currentUID = null;
+
+    (async () => {
+      const { data: { user }, error } = await supabaseClient.auth.getUser();
+      if (error) {
+        console.error("Error fetching user:", error.message);
+        return;
+      }
+      if (user) {
+        currentUID = user.id; 
+        console.log("Logged in as UID:", currentUID);
+        await loadTasks();
+      } else {
+        console.log("No user signed in.");
+      }
+    })();
+
+
+    const dueDateInput = document.createElement("input");
+    dueDateInput.type = "date";
+    dueDateInput.id = "dueDateInput";
+    dueDateInput.style = "width:100%; margin-bottom:10px; padding:8px; border:none; border-radius:5px;";
+    dueDateInput.required = false;
+    taskInput.insertAdjacentElement("afterend", dueDateInput);
+  
+    taskForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    clearError();
+
+    const taskname = taskInput.value.trim();
+    const dueDate = dueDateInput.value ? new Date(dueDateInput.value).toISOString() : null;
+    if (!taskname) return;
+
+    const { data: taskData, error: taskError } = await supabaseClient
+      .from("Tasks")
+      .insert([{ taskname, completed: false, category: "test", dueDate, uid: currentUID }])
+      .select();
+
+    if (taskError || !taskData?.length) {
+      console.error(taskError);
+      showError("Error adding task: " + (taskError?.message || "unknown error"));
+      return;
+    }
+
+    const newTask = taskData[0];
+    let subtaskPayload = [];
+
+    if (subtasks.length > 0) {
+      subtaskPayload = subtasks.map(st => ({
+        taskid: newTask.id,
+        subtaskname: st,
+        completed: false,
+        uid: currentUID
+      }));
+
+      const { data: insertedSubs, error: subtaskError } = await supabaseClient
+        .from("subtasks")
+        .insert(subtaskPayload)
+        .select();
+
+      if (subtaskError) {
+        console.error(subtaskError);
+        showError("Error adding subtasks: " + (subtaskError.message || "unknown error"));
+      } else {
+        subtaskPayload = insertedSubs;
+      }
+    }
+
+    renderTask(newTask, subtaskPayload);
+
+    if (dueDate) {
+      calendar.addEvent({
+        title: taskname,
+        start: dueDate,
+        allDay: true
+      });
+    }
+
+
+    taskInput.value = "";
+    dueDateInput.value = "";
+    subtaskList.innerHTML = "";
+    subtasks = [];
+  });
+
+  
+    document.addEventListener('DOMContentLoaded', function() {
+      const calendarEl = document.getElementById('calendar');
+      calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'dayGridMonth',
+        height: 375,
+        showNonCurrentDates: false,
+        fixedWeekCount: false,
+        headerToolbar: {
+          left: 'prev,next',
+          center: 'title',
+          right: 'dayGridMonth,timeGridDay'
+        }
+      });
+      calendar.render();
+    });
+  </script>
+  <script>
+    document.addEventListener("DOMContentLoaded", async () => {
+
+      const sb = supabase.createClient(supurl, supkey);
+      const { data: { session } } = await sb.auth.getSession();
+  
+      if (!session) {
+        window.location.href = "login.html";
+        return;
+      }
+
+
+
+  
+      const user = session.user;
+      document.getElementById("user-name").textContent = user.user_metadata?.full_name || "User";
+      document.getElementById("user-email").textContent = user.email;
+    });
+  </script>
+  
+  
+</body>
+</html>
