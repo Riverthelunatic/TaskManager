@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Login · Supabase Auth</title>
+  <!-- Supabase JS v2 (UMD) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.44.4/dist/umd/supabase.min.js" defer></script>
+  <style>
+    :root { --accent: #f87800; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background-color: #ffffff;
+      color: #111;
+      text-align: center;
+    }
+    .form1 {
+      background: rgba(0,0,0,0.6);
+      color: #fff;
+      padding: 24px;
+      margin: 0 auto;
+      width: 90%;
+      max-width: 420px;
+      border-radius: 15px;
+      position: relative;
+      top: 50px;
+    }
+    h1 {
+      margin: 0 0 16px;
+      font-size: 2.25rem;
+      font-family: cursive;
+    }
+    label {
+      display: block;
+      text-align: left;
+      margin: 12px 0 6px;
+      font-size: 0.95rem;
+    }
+    input[type="email"],
+    input[type="password"] {
+      width: 100%;
+      height: 44px;
+      border-radius: 7px;
+      font-size: 1rem;
+      margin-bottom: 10px;
+      border: none;
+      padding: 0 12px;
+      background: #fff;
+      color: #111; /* ensure visible text */
+    }
+    button[type="submit"] {
+      width: 100%;
+      height: 44px;
+      border-radius: 7px;
+      border: none;
+      font-size: 1.05rem;
+      background: var(--accent);
+      color: #fff;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+    }
+    button[disabled] { opacity: 0.7; cursor: not-allowed; }
+    button[type="submit"]:hover { background-color: #a84702e1; }
+    .msg { margin-top: 12px; min-height: 1.25em; font-size: 0.95rem; }
+    .msg.error { color: #ffd6d6; }
+    .msg.success { color: #c8ffd6; }
+    @media (max-width: 480px) {
+      h1 { font-size: 1.75rem; }
+      .form1 { padding: 16px; top: 30px; }
+      input, button { height: 40px; font-size: 1rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="main">
+    <div class="form1">
+      <h1>Login</h1>
+      <form id="login-form" novalidate>
+        <label for="email">Email address</label>
+        <input id="email" name="email" type="email" placeholder="you@example.com" autocomplete="email" required />
+
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" placeholder="Your password" autocomplete="current-password" required />
+
+        <button id="login-btn" type="submit">Login</button>
+        <div id="msg" class="msg" role="status" aria-live="polite"></div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+         const supabaseUrl = 'https://ksjlxzbkwwruhdadceye.supabase.co';
+      const supabaseAnonKey = 'sb_publishable_-KfmG3orAkfVuByaPhDf4Q_ZlD_5GFS';
+      const sb = supabase.createClient(supabaseUrl, supabaseAnonKey);
+
+      const form = document.getElementById('login-form');
+      const btn  = document.getElementById('login-btn');
+      const msg  = document.getElementById('msg');
+
+      // If already signed in, you might want to redirect immediately.
+      (async () => {
+        const { data: { session } } = await sb.auth.getSession();
+        if (session) {
+          window.location.href = 'dashboard.html';
+        }
+      })();
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        msg.textContent = '';
+        msg.className = 'msg';
+        btn.disabled = true;
+
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value;
+
+        try {
+          const { data, error } = await sb.auth.signInWithPassword({ email, password });
+
+          if (error) {
+            msg.textContent = error.message || 'Login failed. Please check your credentials.';
+            msg.classList.add('error');
+            return;
+          }
+
+          // OPTIONAL: fetch profile data from your own table (not passwords!)
+          // const { data: profile } = await sb
+          //   .from('profiles')
+          //   .select('full_name')
+          //   .eq('id', data.user.id)
+          //   .single();
+
+          msg.textContent = `Login successful! Welcome back${data.user?.email ? ', ' + data.user.email : ''}.`;
+          msg.classList.add('success');
+
+          // Redirect to your app
+          window.location.href = 'dashboard.html';
+        } catch (err) {
+          msg.textContent = 'Something went wrong. Please try again.';
+          msg.classList.add('error');
+          console.error(err);
+        } finally {
+          btn.disabled = false;
+        }
+      });
+
+      // Keep your UI in sync with auth changes (optional but handy)
+      sb.auth.onAuthStateChange((_event, session) => {
+        // e.g. if a magic link flow completes elsewhere
+        if (session) {
+          window.location.href = 'dashboard.html';
+        }
+      });
+    });
+  </script>
+</body>
+</html>
