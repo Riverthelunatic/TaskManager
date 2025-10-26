@@ -102,13 +102,6 @@
       const btn  = document.getElementById('login-btn');
       const msg  = document.getElementById('msg');
 
-      // If already signed in, you might want to redirect immediately.
-      (async () => {
-        const { data: { session } } = await sb.auth.getSession();
-        if (session) {
-          window.location.href = 'dashboard.html';
-        }
-      })();
 
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -128,18 +121,12 @@
             return;
           }
 
-          // OPTIONAL: fetch profile data from your own table (not passwords!)
-          // const { data: profile } = await sb
-          //   .from('profiles')
-          //   .select('full_name')
-          //   .eq('id', data.user.id)
-          //   .single();
 
           msg.textContent = `Login successful! Welcome back${data.user?.email ? ', ' + data.user.email : ''}.`;
           msg.classList.add('success');
 
           // Redirect to your app
-          window.location.href = 'dashboard.html';
+          window.location.href = 'index.html';
         } catch (err) {
           msg.textContent = 'Something went wrong. Please try again.';
           msg.classList.add('error');
@@ -149,11 +136,9 @@
         }
       });
 
-      // Keep your UI in sync with auth changes (optional but handy)
       sb.auth.onAuthStateChange((_event, session) => {
-        // e.g. if a magic link flow completes elsewhere
         if (session) {
-          window.location.href = 'dashboard.html';
+          window.location.href = 'index.html';
         }
       });
     });
