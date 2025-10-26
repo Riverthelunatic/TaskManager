@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sign up · Supabase Auth</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.44.4/dist/umd/supabase.min.js" defer></script>
+  <style>
+    :root { --accent: #f87800; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background-color: #ffffff;
+      color: #111;
+      text-align: center;
+    }
+    .form1 {
+      background: rgba(0,0,0,0.6);
+      color: #fff;
+      padding: 24px;
+      margin: 0 auto;
+      width: 90%;
+      max-width: 420px;
+      border-radius: 15px;
+      position: relative;
+      top: 50px;
+    }
+    h1 {
+      margin: 0 0 16px;
+      font-size: 2.25rem;
+      font-family: cursive;
+    }
+    label { display: block; text-align: left; margin: 12px 0 6px; font-size: 0.95rem; }
+    input[type="text"],
+    input[type="email"],
+    input[type="password"] {
+      width: 100%;
+      height: 44px;
+      border-radius: 7px;
+      font-size: 1rem;
+      border: none;
+      padding: 0 12px;
+      background: #fff;
+      color: #111;
+    }
+    .hint { text-align: left; font-size: 0.85rem; opacity: 0.9; margin: 6px 0 12px; }
+    button {
+      width: 100%;
+      height: 44px;
+      border-radius: 7px;
+      border: none;
+      font-size: 1.05rem;
+      background: var(--accent);
+      color: #fff;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+      margin-top: 8px;
+    }
+    button[disabled] { opacity: 0.7; cursor: not-allowed; }
+    button:hover { background-color: #a84702e1; }
+    .link-btn {
+      background: transparent; border: 1px solid #fff; margin-top: 8px;
+    }
+    .msg { margin-top: 12px; min-height: 1.25em; font-size: 0.95rem; }
+    .msg.error { color: #ffd6d6; }
+    .msg.success { color: #c8ffd6; }
+    @media (max-width: 480px) {
+      h1 { font-size: 1.75rem; }
+      .form1 { padding: 16px; top: 30px; }
+      input, button { height: 40px; font-size: 1rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="main">
+    <div class="form1">
+      <h1>Create account</h1>
+      <form id="signup-form" novalidate>
+        <label for="full_name">Full name (optional)</label>
+        <input id="full_name" name="full_name" type="text" placeholder="Ada Lovelace" autocomplete="name" />
+
+        <label for="email">Email address</label>
+        <input id="email" name="email" type="email" placeholder="you@example.com" autocomplete="email" required />
+
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" placeholder="At least 8 characters" autocomplete="new-password" minlength="8" required />
+        <div class="hint">Use at least 8 characters, ideally with a mix of letters, numbers, and symbols.</div>
+
+        <label for="confirm">Confirm password</label>
+        <input id="confirm" name="confirm" type="password" placeholder="Re-enter your password" autocomplete="new-password" required />
+
+        <button id="signup-btn" type="submit">Sign up</button>
+        <button id="resend-btn" type="button" class="link-btn" hidden>Resend confirmation email</button>
+
+        <div id="msg" class="msg" role="status" aria-live="polite"></div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const supabaseUrl = 'https://ksjlxzbkwwruhdadceye.supabase.co';
+      const supabaseAnonKey = 'sb_publishable_-KfmG3orAkfVuByaPhDf4Q_ZlD_5GFS';
+      const sb = supabase.createClient(supabaseUrl, supabaseAnonKey);
+
+      const form = document.getElementById('signup-form');
+      const btn  = document.getElementById('signup-btn');
+      const resendBtn = document.getElementById('resend-btn');
+      const msg  = document.getElementById('msg');
+
+      function setMsg(text, type) {
+        msg.textContent = text || '';
+        msg.className = 'msg' + (type ? ' ' + type : '');
+      }
+
+      (async () => {
+        const { data: { session } } = await sb.auth.getSession();
+        if (session) window.location.href = 'dashboard.html';
+      })();
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        setMsg('', null);
+        btn.disabled = true;
+
+        const full_name = document.getElementById('full_name').value.trim();
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value;
+        const confirm = document.getElementById('confirm').value;
+
+        if (password.length < 8) {
+          setMsg('Password must be at least 8 characters.', 'error');
+          btn.disabled = false; return;
+        }
+        if (password !== confirm) {
+          setMsg('Passwords do not match.', 'error');
+          btn.disabled = false; return;
+        }
+
+        try {
+          const { data, error } = await sb.auth.signUp({
+            email,
+            password,
+            options: {
+              data: { full_name }, 
+              emailRedirectTo: `${location.origin}/auth/callback`
+            }
+          });
+
+          if (error) {
+            setMsg(error.message || 'Sign-up failed. Please try again.', 'error');
+            return;
+          }
+
+          if (data.user && !data.session) {
+            setMsg('Thanks! Please check your inbox and confirm your email to finish signing up.', 'success');
+            resendBtn.hidden = false;
+            resendBtn.onclick = async () => {
+              const { error: resendError } = await sb.auth.resend({ type: 'signup', email });
+              setMsg(resendError ? (resendError.message || 'Could not resend email.') : 'Confirmation email sent again. Please check your inbox (and spam).', resendError ? 'error' : 'success');
+            };
+            return;
+          }
+
+          setMsg('Account created! Redirecting…', 'success');
+          window.location.href = 'dashboard.html';
+        } catch (err) {
+          console.error(err);
+          setMsg('Something went wrong. Please try again.', 'error');
+        } finally {
+          btn.disabled = false;
+        }
+      });
+
+      sb.auth.onAuthStateChange((_event, session) => {
+        if (session) window.location.href = 'dashboard.html';
+      });
+    });
+  </script>
+</body>
+</html>
